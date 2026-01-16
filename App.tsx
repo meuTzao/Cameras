@@ -17,6 +17,8 @@ const App: React.FC = () => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [showAreas, setShowAreas] = useState(true);
   const [showFOVs, setShowFOVs] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isPlacementMode, setIsPlacementMode] = useState(false);
   const [mapImage, setMapImage] = useState<string | null>(localStorage.getItem('security_map_image'));
   const [isStarted, setIsStarted] = useState(false);
 
@@ -59,35 +61,36 @@ const App: React.FC = () => {
   };
 
   const updateCamera = useCallback((updatedCamera: Camera) => {
+    if (isLocked) return;
     setCameras(prev => prev.map(c => c.id === updatedCamera.id ? updatedCamera : c));
-  }, []);
+  }, [isLocked]);
 
   const deleteCamera = useCallback((id: string) => {
-    // Primeiro limpamos a seleção para fechar o painel lateral
+    if (isLocked) return;
     setSelectedCameraId(null);
-    // Depois removemos do estado usando uma atualização funcional para segurança
     setCameras(prev => prev.filter(c => c.id !== id));
-  }, []);
+  }, [isLocked]);
 
   const updateArea = useCallback((updatedArea: Area) => {
+    if (isLocked) return;
     setAreas(prev => prev.map(a => a.id === updatedArea.id ? updatedArea : a));
-  }, []);
+  }, [isLocked]);
 
   const deleteArea = useCallback((id: string) => {
-    // Primeiro limpamos a seleção
+    if (isLocked) return;
     setSelectedAreaId(null);
-    // Depois removemos do estado
     setAreas(prev => prev.filter(a => a.id !== id));
-  }, []);
+  }, [isLocked]);
 
-  const addCamera = useCallback(() => {
+  const addCameraAt = useCallback((x: number, y: number) => {
+    if (isLocked) return;
     const newId = Math.random().toString(36).substr(2, 9);
     const newCam: Camera = {
       id: newId,
-      name: `Nova Câmera ${newId.toUpperCase()}`,
+      name: `Câmera ${newId.toUpperCase().slice(0, 4)}`,
       status: 'Active',
-      x: 50,
-      y: 50,
+      x,
+      y,
       rotation: 0,
       fovAngle: 60,
       reach: 150,
@@ -99,13 +102,15 @@ const App: React.FC = () => {
     setCameras(prev => [...prev, newCam]);
     setSelectedAreaId(null);
     setSelectedCameraId(newId);
-  }, []);
+    setIsPlacementMode(false);
+  }, [isLocked]);
 
   const onAddArea = useCallback((newArea: Area) => {
+    if (isLocked) return;
     setAreas(prev => [...prev, { ...newArea, color: '#3b82f6' }]);
     setSelectedCameraId(null);
     setSelectedAreaId(newArea.id);
-  }, []);
+  }, [isLocked]);
 
   const handleExport = () => {
     const data = {
@@ -205,11 +210,15 @@ const App: React.FC = () => {
             onAddArea={onAddArea}
             zoom={zoom}
             onZoomChange={setZoom}
-            onAddCamera={addCamera}
+            onAddCameraAt={addCameraAt}
             showAreas={showAreas}
             onToggleAreas={() => setShowAreas(!showAreas)}
             showFOVs={showFOVs}
             onToggleFOVs={() => setShowFOVs(!showFOVs)}
+            isLocked={isLocked}
+            onToggleLock={() => setIsLocked(!isLocked)}
+            isPlacementMode={isPlacementMode}
+            onTogglePlacementMode={() => setIsPlacementMode(!isPlacementMode)}
           />
         </div>
 

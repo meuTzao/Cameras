@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { ZoomIn, ZoomOut, Plus, Camera as CamIcon, BoxSelect, Upload, Image as ImageIcon, Eye, EyeOff } from 'lucide-react';
+import { ZoomIn, ZoomOut, Plus, Camera as CamIcon, BoxSelect, Upload, Image as ImageIcon, Eye, EyeOff, Lock, Unlock, MousePointer2 } from 'lucide-react';
 import { Camera, Area } from '../types';
 
 interface MapViewProps {
@@ -16,11 +16,15 @@ interface MapViewProps {
   onAddArea: (area: Area) => void;
   zoom: number;
   onZoomChange: (zoom: number) => void;
-  onAddCamera: () => void;
+  onAddCameraAt: (x: number, y: number) => void;
   showAreas: boolean;
   onToggleAreas: () => void;
   showFOVs: boolean;
   onToggleFOVs: () => void;
+  isLocked: boolean;
+  onToggleLock: () => void;
+  isPlacementMode: boolean;
+  onTogglePlacementMode: () => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -36,17 +40,23 @@ const MapView: React.FC<MapViewProps> = ({
   onAddArea,
   zoom,
   onZoomChange,
-  onAddCamera,
+  onAddCameraAt,
   showAreas,
   onToggleAreas,
   showFOVs,
-  onToggleFOVs
+  onToggleFOVs,
+  isLocked,
+  onToggleLock,
+  isPlacementMode,
+  onTogglePlacementMode
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [isDraggingCam, setIsDraggingCam] = useState(false);
+  const [isLongPressed, setIsLongPressed] = useState(false);
   const [isMappingMode, setIsMappingMode] = useState(false);
   const [mappingStart, setMappingStart] = useState<{ x: number, y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
@@ -99,8 +109,16 @@ const MapView: React.FC<MapViewProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isLocked) return;
+
+    const { x, y } = getCoords(e);
+
+    if (isPlacementMode) {
+      onAddCameraAt(x, y);
+      return;
+    }
+
     if (isMappingMode) {
-      const { x, y } = getCoords(e);
       setMappingStart({ x, y });
       setCurrentRect({ x, y, w: 0, h: 0 });
     }
@@ -109,7 +127,7 @@ const MapView: React.FC<MapViewProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     const { x, y } = getCoords(e);
 
-    if (isMappingMode && mappingStart) {
+    if (isMappingMode && mappingStart && !isLocked) {
       setCurrentRect({
         x: Math.min(x, mappingStart.x),
         y: Math.min(y, mappingStart.y),
@@ -118,7 +136,7 @@ const MapView: React.FC<MapViewProps> = ({
       });
     }
 
-    if (isDraggingCam && selectedCameraId) {
+    if (isDraggingCam && selectedCameraId && isLongPressed && !isLocked) {
       const cam = cameras.find(c => c.id === selectedCameraId);
       if (cam) {
         onUpdateCamera({
@@ -130,11 +148,16 @@ const MapView: React.FC<MapViewProps> = ({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
     if (isMappingMode && currentRect && currentRect.w > 0.5 && currentRect.h > 0.5) {
       onAddArea({
         id: Math.random().toString(36).substr(2, 9),
-        name: `Novo Setor ${areas.length + 1}`,
+        name: `Setor ${areas.length + 1}`,
         x: currentRect.x,
         y: currentRect.y,
         width: currentRect.w,
@@ -147,12 +170,21 @@ const MapView: React.FC<MapViewProps> = ({
     setMappingStart(null);
     setCurrentRect(null);
     setIsDraggingCam(false);
-  };
+    setIsLongPressed(false);
+  }, [isMappingMode, currentRect, areas.length, onAddArea]);
 
   const handleCameraDown = (e: React.MouseEvent, cam: Camera) => {
     e.stopPropagation();
     onSelectCamera(cam.id);
-    setIsDraggingCam(true);
+    
+    if (isLocked) return;
+
+    // Iniciar temporizador de 2 segundos para liberar o arraste
+    setIsLongPressed(false);
+    longPressTimerRef.current = setTimeout(() => {
+      setIsLongPressed(true);
+      setIsDraggingCam(true);
+    }, 2000);
   };
 
   const handleAreaClick = (e: React.MouseEvent, area: Area) => {
@@ -163,7 +195,7 @@ const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, [isMappingMode, currentRect, areas.length]);
+  }, [handleMouseUp]);
 
   return (
     <div 
@@ -176,6 +208,17 @@ const MapView: React.FC<MapViewProps> = ({
       {/* Control Toolbar Flutuante */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 w-full flex justify-center">
         <div className="flex items-center gap-2 pointer-events-auto bg-[#111827]/95 backdrop-blur-xl border border-slate-700/50 p-2 rounded-2xl shadow-2xl">
+          
+          <button 
+            onClick={onToggleLock}
+            className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${isLocked ? 'bg-rose-600 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'}`}
+            title={isLocked ? "Desbloquear Edição" : "Travar Edição"}
+          >
+            {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+          </button>
+
+          <div className="w-px h-6 bg-slate-700 mx-1" />
+
           <div className="flex items-center gap-1 border-r border-slate-700/50 pr-2 mr-1">
             <button onClick={() => onZoomChange(Math.max(25, zoom - 25))} className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 transition-colors"><ZoomOut className="w-5 h-5" /></button>
             <span className="px-3 text-[11px] font-black text-slate-100 min-w-[55px] text-center select-none tabular-nums">{zoom}%</span>
@@ -202,22 +245,31 @@ const MapView: React.FC<MapViewProps> = ({
           </div>
 
           <button 
+            disabled={isLocked}
             onClick={() => setIsMappingMode(!isMappingMode)} 
             className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all ${
-              isMappingMode ? 'bg-amber-500 text-slate-900 shadow-xl animate-pulse' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800'
-            }`}
+              isMappingMode ? 'bg-amber-500 text-slate-900 shadow-xl' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800'
+            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <BoxSelect className="w-4 h-4" /> {isMappingMode ? 'CANCELAR' : 'MAPEAR'}
           </button>
-          <button onClick={onAddCamera} className="p-2.5 px-4 rounded-xl text-[10px] font-black bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-2 transition-all shadow-xl">
-            <Plus className="w-4 h-4" /> CÂMERA
+
+          <button 
+            disabled={isLocked}
+            onClick={onTogglePlacementMode} 
+            className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all shadow-xl ${
+              isPlacementMode ? 'bg-blue-400 text-slate-900 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'
+            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isPlacementMode ? <MousePointer2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {isPlacementMode ? 'CLIQUE NO MAPA' : 'CÂMERA'}
           </button>
         </div>
       </div>
 
       {/* Área do Mapa */}
       <div 
-        className={`relative min-w-full min-h-full flex items-center justify-center ${isMappingMode ? 'cursor-crosshair' : 'cursor-default'}`}
+        className={`relative min-w-full min-h-full flex items-center justify-center ${isMappingMode || isPlacementMode ? 'cursor-crosshair' : 'cursor-default'}`}
         onMouseMove={handleMouseMove} 
         onMouseDown={handleMouseDown}
       >
@@ -246,6 +298,7 @@ const MapView: React.FC<MapViewProps> = ({
                   height: `${area.height}%`,
                   backgroundColor: `${area.color}22`,
                   borderColor: area.color,
+                  pointerEvents: isLocked && selectedAreaId !== area.id ? 'none' : 'auto',
                   ...(selectedAreaId === area.id ? { boxShadow: `0 0 50px ${area.color}33`, backgroundColor: `${area.color}44` } : {})
                 }}
               >
@@ -263,7 +316,15 @@ const MapView: React.FC<MapViewProps> = ({
             )}
 
             {cameras.map(cam => (
-              <div key={cam.id} style={{ left: `${cam.x}%`, top: `${cam.y}%`, transform: 'translate(-50%, -50%)' }} className={`absolute z-30 transition-transform ${selectedCameraId === cam.id ? 'z-40' : ''}`}>
+              <div 
+                key={cam.id} 
+                style={{ 
+                  left: `${cam.x}%`, 
+                  top: `${cam.y}%`, 
+                  transform: 'translate(-50%, -50%)',
+                }} 
+                className={`absolute z-30 transition-transform ${selectedCameraId === cam.id ? 'z-40' : ''}`}
+              >
                 {showFOVs && (
                   <svg className="absolute pointer-events-none opacity-40 transition-all" style={{ left: '50%', top: '50%', width: cam.reach * 2, height: cam.reach * 2, transform: `translate(-50%, -50%) rotate(${cam.rotation - 90}deg)`, overflow: 'visible' }}>
                     <path d={`M ${cam.reach} ${cam.reach} L ${cam.reach + cam.reach * Math.cos((-cam.fovAngle / 2) * Math.PI / 180)} ${cam.reach + cam.reach * Math.sin((-cam.fovAngle / 2) * Math.PI / 180)} A ${cam.reach} ${cam.reach} 0 0 1 ${cam.reach + cam.reach * Math.cos((cam.fovAngle / 2) * Math.PI / 180)} ${cam.reach + cam.reach * Math.sin((cam.fovAngle / 2) * Math.PI / 180)} Z`} fill={getConeColor(cam.status)} />
@@ -272,9 +333,18 @@ const MapView: React.FC<MapViewProps> = ({
                 <div 
                   onMouseDown={(e) => handleCameraDown(e, cam)} 
                   style={{ width: `${cam.iconSize}px`, height: `${cam.iconSize}px` }} 
-                  className={`rounded-full flex items-center justify-center cursor-move transition-all border-2 shadow-2xl ${getStatusColor(cam.status)} ${selectedCameraId === cam.id ? 'ring-4 border-white scale-125' : 'hover:scale-110'}`}
+                  className={`rounded-full flex flex-col items-center justify-center transition-all border-2 shadow-2xl ${getStatusColor(cam.status)} 
+                    ${selectedCameraId === cam.id ? 'ring-4 border-white scale-125' : 'hover:scale-110'}
+                    ${isLocked ? 'cursor-default' : 'cursor-move'}
+                    ${isLongPressed && selectedCameraId === cam.id ? 'animate-pulse scale-[1.4] ring-white ring-8' : ''}
+                  `}
                 >
                   <CamIcon className="w-1/2 h-1/2 text-white" />
+                  {selectedCameraId === cam.id && !isLocked && !isLongPressed && (
+                    <div className="absolute -top-12 bg-white/10 backdrop-blur-md text-[8px] text-white px-2 py-1 rounded font-black whitespace-nowrap animate-bounce border border-white/20">
+                      SEGURE 2S PARA MOVER
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
