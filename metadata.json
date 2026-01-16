@@ -1,0 +1,8 @@
+{
+  "name": "Copy of SecurityCam Manager Pro",
+  "description": "A high-end security camera management system with interactive mapping, field-of-view visualization, and detailed camera configuration.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
