@@ -1,30 +1,14 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import SidebarLeft from './components/SidebarLeft';
 import MapView from './components/MapView';
 import SidebarRight from './components/SidebarRight';
+import WelcomeScreen from './components/WelcomeScreen';
 import { Camera, Area } from './types';
 
-const INITIAL_CAMERAS: Camera[] = [
-  {
-    id: '1768562750683',
-    name: 'Câmera Entrada Sul',
-    status: 'Active',
-    x: 25,
-    y: 90,
-    rotation: 0,
-    fovAngle: 60,
-    reach: 150,
-    iconSize: 40,
-    observations: '',
-    installDate: '15/01/2026',
-    lastMaintenance: null,
-  }
-];
-
 const App: React.FC = () => {
-  const [cameras, setCameras] = useState<Camera[]>(INITIAL_CAMERAS);
+  const [cameras, setCameras] = useState<Camera[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
@@ -34,6 +18,9 @@ const App: React.FC = () => {
   const [showAreas, setShowAreas] = useState(true);
   const [showFOVs, setShowFOVs] = useState(true);
   const [mapImage, setMapImage] = useState<string | null>(localStorage.getItem('security_map_image'));
+  const [isStarted, setIsStarted] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCamera = useMemo(() => 
     cameras.find(c => c.id === selectedCameraId) || null,
@@ -76,9 +63,7 @@ const App: React.FC = () => {
   }, []);
 
   const deleteCamera = useCallback((id: string) => {
-    // Ordem crítica: Primeiro remove do estado para evitar que o renderizador tente ler o objeto deletado
     setCameras(prev => prev.filter(c => c.id !== id));
-    // Depois fecha o painel
     setSelectedCameraId(null);
   }, []);
 
@@ -87,9 +72,7 @@ const App: React.FC = () => {
   }, []);
 
   const deleteArea = useCallback((id: string) => {
-    // Ordem crítica: Remove do estado primeiro
     setAreas(prev => prev.filter(a => a.id !== id));
-    // Depois fecha o painel
     setSelectedAreaId(null);
   }, []);
 
@@ -97,13 +80,13 @@ const App: React.FC = () => {
     const newId = Math.random().toString(36).substr(2, 9);
     const newCam: Camera = {
       id: newId,
-      name: `Nova Câmera ${newId}`,
+      name: `Nova Câmera ${newId.toUpperCase()}`,
       status: 'Active',
       x: 50,
       y: 50,
       rotation: 0,
-      fovAngle: 45,
-      reach: 100,
+      fovAngle: 60,
+      reach: 150,
       iconSize: 40,
       observations: '',
       installDate: new Date().toLocaleDateString('pt-BR'),
@@ -120,19 +103,76 @@ const App: React.FC = () => {
     setSelectedAreaId(newArea.id);
   }, []);
 
-  const handleSelectCamera = (id: string) => {
-    setSelectedAreaId(null);
-    setSelectedCameraId(id);
+  const handleExport = () => {
+    const data = {
+      cameras,
+      areas,
+      mapImage,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `security-project-${new Date().getTime()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleSelectArea = (id: string) => {
-    setSelectedCameraId(null);
-    setSelectedAreaId(id);
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const data = JSON.parse(content);
+          if (data.cameras) setCameras(data.cameras);
+          if (data.areas) setAreas(data.areas);
+          if (data.mapImage) {
+            setMapImage(data.mapImage);
+            localStorage.setItem('security_map_image', data.mapImage);
+          }
+          setIsStarted(true);
+        } catch (error) {
+          alert('Erro ao carregar arquivo. Certifique-se de que é um JSON válido do SecurityCam.');
+        }
+      };
+      reader.readAsText(file);
+    }
   };
+
+  const startNewMapping = () => {
+    setCameras([]);
+    setAreas([]);
+    // Mantemos o mapImage do localStorage como sugestão, ou o usuário pode trocar no MapView
+    setIsStarted(true);
+  };
+
+  if (!isStarted) {
+    return (
+      <WelcomeScreen 
+        onNew={startNewMapping} 
+        onOpen={() => fileInputRef.current?.click()} 
+      >
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept=".json" 
+          onChange={handleImport} 
+        />
+      </WelcomeScreen>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0f1a] text-slate-300">
-      <Header onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)} />
+      <Header 
+        onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)} 
+        onExport={handleExport}
+        onReset={() => setIsStarted(false)}
+      />
       
       <main className="flex flex-1 overflow-hidden relative">
         <div 
@@ -142,7 +182,7 @@ const App: React.FC = () => {
             stats={stats}
             cameras={filteredCameras}
             selectedCameraId={selectedCameraId}
-            onSelectCamera={handleSelectCamera}
+            onSelectCamera={(id) => { setSelectedAreaId(null); setSelectedCameraId(id); }}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
           />
@@ -156,8 +196,8 @@ const App: React.FC = () => {
             onMapUpload={handleMapUpload}
             selectedCameraId={selectedCameraId}
             selectedAreaId={selectedAreaId}
-            onSelectCamera={handleSelectCamera}
-            onSelectArea={handleSelectArea}
+            onSelectCamera={(id) => { setSelectedAreaId(null); setSelectedCameraId(id); }}
+            onSelectArea={(id) => { setSelectedCameraId(null); setSelectedAreaId(id); }}
             onUpdateCamera={updateCamera}
             onAddArea={onAddArea}
             zoom={zoom}
