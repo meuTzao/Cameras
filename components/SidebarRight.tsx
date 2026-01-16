@@ -54,13 +54,16 @@ const SidebarRight: React.FC<SidebarRightProps> = ({
   const currentItem = isCamera ? camera : area;
   const title = isCamera ? 'Configurar Câmera' : 'Configurar Setor';
 
-  const handleExcluirClick = () => {
+  const handleExcluirClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!showConfirm) {
       setShowConfirm(true);
       return;
     }
 
-    // Se já estava mostrando confirmação, executa a exclusão real
+    // Executa a exclusão real usando o ID capturado do item atual
     if (isCamera && camera) {
       onDeleteCamera(camera.id);
     } else if (!isCamera && area) {

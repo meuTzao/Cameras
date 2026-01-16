@@ -63,8 +63,10 @@ const App: React.FC = () => {
   }, []);
 
   const deleteCamera = useCallback((id: string) => {
-    setCameras(prev => prev.filter(c => c.id !== id));
+    // Primeiro limpamos a seleção para fechar o painel lateral
     setSelectedCameraId(null);
+    // Depois removemos do estado usando uma atualização funcional para segurança
+    setCameras(prev => prev.filter(c => c.id !== id));
   }, []);
 
   const updateArea = useCallback((updatedArea: Area) => {
@@ -72,8 +74,10 @@ const App: React.FC = () => {
   }, []);
 
   const deleteArea = useCallback((id: string) => {
-    setAreas(prev => prev.filter(a => a.id !== id));
+    // Primeiro limpamos a seleção
     setSelectedAreaId(null);
+    // Depois removemos do estado
+    setAreas(prev => prev.filter(a => a.id !== id));
   }, []);
 
   const addCamera = useCallback(() => {
@@ -145,7 +149,6 @@ const App: React.FC = () => {
   const startNewMapping = () => {
     setCameras([]);
     setAreas([]);
-    // Mantemos o mapImage do localStorage como sugestão, ou o usuário pode trocar no MapView
     setIsStarted(true);
   };
 
