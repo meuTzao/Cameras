@@ -76,8 +76,10 @@ const App: React.FC = () => {
   }, []);
 
   const deleteCamera = useCallback((id: string) => {
-    setSelectedCameraId(null);
+    // Ordem crítica: Primeiro remove do estado para evitar que o renderizador tente ler o objeto deletado
     setCameras(prev => prev.filter(c => c.id !== id));
+    // Depois fecha o painel
+    setSelectedCameraId(null);
   }, []);
 
   const updateArea = useCallback((updatedArea: Area) => {
@@ -85,10 +87,10 @@ const App: React.FC = () => {
   }, []);
 
   const deleteArea = useCallback((id: string) => {
-    // Primeiro limpamos a seleção para o painel lateral desmontar imediatamente
-    setSelectedAreaId(null);
-    // Depois removemos do estado
+    // Ordem crítica: Remove do estado primeiro
     setAreas(prev => prev.filter(a => a.id !== id));
+    // Depois fecha o painel
+    setSelectedAreaId(null);
   }, []);
 
   const addCamera = useCallback(() => {
@@ -170,6 +172,7 @@ const App: React.FC = () => {
 
         {(selectedCamera || selectedArea) && (
           <SidebarRight 
+            key={selectedCameraId || selectedAreaId || 'sidebar'}
             camera={selectedCamera}
             area={selectedArea}
             onUpdateCamera={updateCamera}

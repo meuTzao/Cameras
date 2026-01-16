@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { X, Save, RotateCcw, Maximize, Compass, Zap, Trash2, Box, Palette } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, RotateCcw, Maximize, Compass, Zap, Trash2, Box, Palette, AlertTriangle } from 'lucide-react';
 import { Camera, Area, CameraStatus } from '../types';
 
 interface SidebarRightProps {
@@ -33,28 +33,40 @@ const SidebarRight: React.FC<SidebarRightProps> = ({
   onDeleteArea,
   onClose
 }) => {
-  // Se não houver nada selecionado, não renderiza nada
-  if (!camera && !area) return null;
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  // Identifica o tipo de item atual para a lógica de exclusão
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Resetar o estado de confirmação se mudar o item selecionado
+  useEffect(() => {
+    setShowConfirm(false);
+  }, [camera?.id, area?.id]);
 
-    if (camera) {
-      if (window.confirm(`Deseja realmente excluir a câmera "${camera.name}"?`)) {
-        onDeleteCamera(camera.id);
-      }
-    } else if (area) {
-      if (window.confirm(`Deseja realmente excluir o setor "${area.name}"?`)) {
-        onDeleteArea(area.id);
-      }
+  // Resetar o estado de confirmação após 3 segundos por segurança
+  useEffect(() => {
+    if (showConfirm) {
+      const timer = setTimeout(() => setShowConfirm(false), 3000);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [showConfirm]);
+
+  if (!camera && !area) return null;
 
   const isCamera = !!camera;
   const currentItem = isCamera ? camera : area;
   const title = isCamera ? 'Configurar Câmera' : 'Configurar Setor';
+
+  const handleExcluirClick = () => {
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    // Se já estava mostrando confirmação, executa a exclusão real
+    if (isCamera && camera) {
+      onDeleteCamera(camera.id);
+    } else if (!isCamera && area) {
+      onDeleteArea(area.id);
+    }
+  };
 
   const statusColors: Record<string, string> = {
     Active: 'bg-emerald-500',
@@ -141,10 +153,15 @@ const SidebarRight: React.FC<SidebarRightProps> = ({
       <div className="mt-auto pt-8 flex flex-col gap-3">
         <button 
           type="button"
-          onClick={handleDelete}
-          className="w-full bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white py-4 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 transition-all border border-rose-500/30 active:scale-95 uppercase tracking-widest"
+          onClick={handleExcluirClick}
+          className={`w-full py-4 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 transition-all border active:scale-95 uppercase tracking-widest ${
+            showConfirm 
+              ? 'bg-rose-600 border-white text-white shadow-lg animate-pulse' 
+              : 'bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white border-rose-500/30'
+          }`}
         >
-          <Trash2 className="w-4 h-4" /> EXCLUIR ITEM
+          {showConfirm ? <AlertTriangle className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+          {showConfirm ? 'CONFIRMAR EXCLUSÃO?' : 'EXCLUIR ITEM'}
         </button>
         <button 
           type="button"
