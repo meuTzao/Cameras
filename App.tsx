@@ -18,11 +18,13 @@ const App: React.FC = () => {
   const [showAreas, setShowAreas] = useState(true);
   const [showFOVs, setShowFOVs] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
   const [mapImage, setMapImage] = useState<string | null>(localStorage.getItem('security_map_image'));
   const [isStarted, setIsStarted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewOnlyInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCamera = useMemo(() => 
     cameras.find(c => c.id === selectedCameraId) || null,
@@ -61,29 +63,29 @@ const App: React.FC = () => {
   };
 
   const updateCamera = useCallback((updatedCamera: Camera) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     setCameras(prev => prev.map(c => c.id === updatedCamera.id ? updatedCamera : c));
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const deleteCamera = useCallback((id: string) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     setSelectedCameraId(null);
     setCameras(prev => prev.filter(c => c.id !== id));
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const updateArea = useCallback((updatedArea: Area) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     setAreas(prev => prev.map(a => a.id === updatedArea.id ? updatedArea : a));
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const deleteArea = useCallback((id: string) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     setSelectedAreaId(null);
     setAreas(prev => prev.filter(a => a.id !== id));
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const addCameraAt = useCallback((x: number, y: number) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     const newId = Math.random().toString(36).substr(2, 9);
     const newCam: Camera = {
       id: newId,
@@ -103,14 +105,14 @@ const App: React.FC = () => {
     setSelectedAreaId(null);
     setSelectedCameraId(newId);
     setIsPlacementMode(false);
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const onAddArea = useCallback((newArea: Area) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     setAreas(prev => [...prev, { ...newArea, color: '#3b82f6' }]);
     setSelectedCameraId(null);
     setSelectedAreaId(newArea.id);
-  }, [isLocked]);
+  }, [isLocked, isViewOnly]);
 
   const handleExport = () => {
     const data = {
@@ -128,7 +130,7 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>, viewOnly: boolean = false) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -142,6 +144,8 @@ const App: React.FC = () => {
             setMapImage(data.mapImage);
             localStorage.setItem('security_map_image', data.mapImage);
           }
+          setIsViewOnly(viewOnly);
+          setIsLocked(viewOnly); // Trava automaticamente se for apenas visualização
           setIsStarted(true);
         } catch (error) {
           alert('Erro ao carregar arquivo. Certifique-se de que é um JSON válido do SecurityCam.');
@@ -154,6 +158,8 @@ const App: React.FC = () => {
   const startNewMapping = () => {
     setCameras([]);
     setAreas([]);
+    setIsViewOnly(false);
+    setIsLocked(false);
     setIsStarted(true);
   };
 
@@ -161,14 +167,22 @@ const App: React.FC = () => {
     return (
       <WelcomeScreen 
         onNew={startNewMapping} 
-        onOpen={() => fileInputRef.current?.click()} 
+        onOpen={() => fileInputRef.current?.click()}
+        onViewOnly={() => viewOnlyInputRef.current?.click()}
       >
         <input 
           type="file" 
           ref={fileInputRef} 
           className="hidden" 
           accept=".json" 
-          onChange={handleImport} 
+          onChange={(e) => handleImport(e, false)} 
+        />
+        <input 
+          type="file" 
+          ref={viewOnlyInputRef} 
+          className="hidden" 
+          accept=".json" 
+          onChange={(e) => handleImport(e, true)} 
         />
       </WelcomeScreen>
     );
@@ -179,7 +193,11 @@ const App: React.FC = () => {
       <Header 
         onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)} 
         onExport={handleExport}
-        onReset={() => setIsStarted(false)}
+        onReset={() => {
+          setIsStarted(false);
+          setIsViewOnly(false);
+        }}
+        isViewOnly={isViewOnly}
       />
       
       <main className="flex flex-1 overflow-hidden relative">
@@ -216,9 +234,10 @@ const App: React.FC = () => {
             showFOVs={showFOVs}
             onToggleFOVs={() => setShowFOVs(!showFOVs)}
             isLocked={isLocked}
-            onToggleLock={() => setIsLocked(!isLocked)}
+            onToggleLock={() => !isViewOnly && setIsLocked(!isLocked)}
             isPlacementMode={isPlacementMode}
-            onTogglePlacementMode={() => setIsPlacementMode(!isPlacementMode)}
+            onTogglePlacementMode={() => !isViewOnly && setIsPlacementMode(!isPlacementMode)}
+            isViewOnly={isViewOnly}
           />
         </div>
 
@@ -231,6 +250,7 @@ const App: React.FC = () => {
             onDeleteCamera={deleteCamera}
             onUpdateArea={updateArea}
             onDeleteArea={deleteArea}
+            isViewOnly={isViewOnly}
             onClose={() => {
               setSelectedCameraId(null);
               setSelectedAreaId(null);

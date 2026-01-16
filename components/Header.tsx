@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { Shield, Settings, Circle, Menu, Download, Home } from 'lucide-react';
+import { Shield, Settings, Circle, Menu, Download, Home, Eye } from 'lucide-react';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   onExport: () => void;
   onReset: () => void;
+  isViewOnly?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onExport, onReset }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onExport, onReset, isViewOnly }) => {
   return (
     <header className="h-14 bg-[#111827] border-b border-slate-800 flex items-center justify-between px-6 z-50">
       <div className="flex items-center gap-4">
@@ -31,6 +32,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onExport, onReset }) =
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">
+        {isViewOnly && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full">
+            <Eye className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Modo de Leitura</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 pr-2 border-r border-slate-800">
           <button 
             onClick={onReset}

@@ -25,6 +25,7 @@ interface MapViewProps {
   onToggleLock: () => void;
   isPlacementMode: boolean;
   onTogglePlacementMode: () => void;
+  isViewOnly?: boolean;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -48,7 +49,8 @@ const MapView: React.FC<MapViewProps> = ({
   isLocked,
   onToggleLock,
   isPlacementMode,
-  onTogglePlacementMode
+  onTogglePlacementMode,
+  isViewOnly
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -109,7 +111,7 @@ const MapView: React.FC<MapViewProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
 
     const { x, y } = getCoords(e);
 
@@ -127,7 +129,7 @@ const MapView: React.FC<MapViewProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     const { x, y } = getCoords(e);
 
-    if (isMappingMode && mappingStart && !isLocked) {
+    if (isMappingMode && mappingStart && !isLocked && !isViewOnly) {
       setCurrentRect({
         x: Math.min(x, mappingStart.x),
         y: Math.min(y, mappingStart.y),
@@ -136,7 +138,7 @@ const MapView: React.FC<MapViewProps> = ({
       });
     }
 
-    if (isDraggingCam && selectedCameraId && isLongPressed && !isLocked) {
+    if (isDraggingCam && selectedCameraId && isLongPressed && !isLocked && !isViewOnly) {
       const cam = cameras.find(c => c.id === selectedCameraId);
       if (cam) {
         onUpdateCamera({
@@ -177,7 +179,7 @@ const MapView: React.FC<MapViewProps> = ({
     e.stopPropagation();
     onSelectCamera(cam.id);
     
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
 
     // Iniciar temporizador de 2 segundos para liberar o arraste
     setIsLongPressed(false);
@@ -209,15 +211,18 @@ const MapView: React.FC<MapViewProps> = ({
       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 w-full flex justify-center">
         <div className="flex items-center gap-2 pointer-events-auto bg-[#111827]/95 backdrop-blur-xl border border-slate-700/50 p-2 rounded-2xl shadow-2xl">
           
-          <button 
-            onClick={onToggleLock}
-            className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${isLocked ? 'bg-rose-600 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'}`}
-            title={isLocked ? "Desbloquear Edição" : "Travar Edição"}
-          >
-            {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-          </button>
-
-          <div className="w-px h-6 bg-slate-700 mx-1" />
+          {!isViewOnly && (
+            <>
+              <button 
+                onClick={onToggleLock}
+                className={`p-2.5 rounded-xl transition-all flex items-center gap-2 ${isLocked ? 'bg-rose-600 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'}`}
+                title={isLocked ? "Desbloquear Edição" : "Travar Edição"}
+              >
+                {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+              </button>
+              <div className="w-px h-6 bg-slate-700 mx-1" />
+            </>
+          )}
 
           <div className="flex items-center gap-1 border-r border-slate-700/50 pr-2 mr-1">
             <button onClick={() => onZoomChange(Math.max(25, zoom - 25))} className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 transition-colors"><ZoomOut className="w-5 h-5" /></button>
@@ -244,26 +249,30 @@ const MapView: React.FC<MapViewProps> = ({
             </button>
           </div>
 
-          <button 
-            disabled={isLocked}
-            onClick={() => setIsMappingMode(!isMappingMode)} 
-            className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all ${
-              isMappingMode ? 'bg-amber-500 text-slate-900 shadow-xl' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800'
-            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <BoxSelect className="w-4 h-4" /> {isMappingMode ? 'CANCELAR' : 'MAPEAR'}
-          </button>
+          {!isViewOnly && (
+            <>
+              <button 
+                disabled={isLocked}
+                onClick={() => setIsMappingMode(!isMappingMode)} 
+                className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all ${
+                  isMappingMode ? 'bg-amber-500 text-slate-900 shadow-xl' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800'
+                } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <BoxSelect className="w-4 h-4" /> {isMappingMode ? 'CANCELAR' : 'MAPEAR'}
+              </button>
 
-          <button 
-            disabled={isLocked}
-            onClick={onTogglePlacementMode} 
-            className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all shadow-xl ${
-              isPlacementMode ? 'bg-blue-400 text-slate-900 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'
-            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isPlacementMode ? <MousePointer2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {isPlacementMode ? 'CLIQUE NO MAPA' : 'CÂMERA'}
-          </button>
+              <button 
+                disabled={isLocked}
+                onClick={onTogglePlacementMode} 
+                className={`p-2.5 px-4 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all shadow-xl ${
+                  isPlacementMode ? 'bg-blue-400 text-slate-900 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'
+                } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isPlacementMode ? <MousePointer2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {isPlacementMode ? 'CLIQUE NO MAPA' : 'CÂMERA'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -298,7 +307,7 @@ const MapView: React.FC<MapViewProps> = ({
                   height: `${area.height}%`,
                   backgroundColor: `${area.color}22`,
                   borderColor: area.color,
-                  pointerEvents: isLocked && selectedAreaId !== area.id ? 'none' : 'auto',
+                  pointerEvents: (isLocked || isViewOnly) && selectedAreaId !== area.id ? 'none' : 'auto',
                   ...(selectedAreaId === area.id ? { boxShadow: `0 0 50px ${area.color}33`, backgroundColor: `${area.color}44` } : {})
                 }}
               >
@@ -335,12 +344,12 @@ const MapView: React.FC<MapViewProps> = ({
                   style={{ width: `${cam.iconSize}px`, height: `${cam.iconSize}px` }} 
                   className={`rounded-full flex flex-col items-center justify-center transition-all border-2 shadow-2xl ${getStatusColor(cam.status)} 
                     ${selectedCameraId === cam.id ? 'ring-4 border-white scale-125' : 'hover:scale-110'}
-                    ${isLocked ? 'cursor-default' : 'cursor-move'}
+                    ${(isLocked || isViewOnly) ? 'cursor-default' : 'cursor-move'}
                     ${isLongPressed && selectedCameraId === cam.id ? 'animate-pulse scale-[1.4] ring-white ring-8' : ''}
                   `}
                 >
                   <CamIcon className="w-1/2 h-1/2 text-white" />
-                  {selectedCameraId === cam.id && !isLocked && !isLongPressed && (
+                  {selectedCameraId === cam.id && !isLocked && !isViewOnly && !isLongPressed && (
                     <div className="absolute -top-12 bg-white/10 backdrop-blur-md text-[8px] text-white px-2 py-1 rounded font-black whitespace-nowrap animate-bounce border border-white/20">
                       SEGURE 2S PARA MOVER
                     </div>

@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { Shield, FilePlus, FolderOpen, ChevronRight } from 'lucide-react';
+import { Shield, FilePlus, FolderOpen, ChevronRight, Eye } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onNew: () => void;
   onOpen: () => void;
+  onViewOnly: () => void;
   children?: React.ReactNode;
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, children }) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, onViewOnly, children }) => {
   return (
     <div className="fixed inset-0 bg-[#0a0f1a] flex flex-col items-center justify-center p-6 z-[100] overflow-hidden">
       {children}
@@ -17,7 +18,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, children }
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 blur-[120px] rounded-full" />
 
-      <div className="relative flex flex-col items-center max-w-2xl w-full text-center space-y-12">
+      <div className="relative flex flex-col items-center max-w-4xl w-full text-center space-y-12">
         <div className="space-y-4">
           <div className="inline-flex items-center justify-center p-4 bg-[#111827] border border-slate-800 rounded-3xl shadow-2xl mb-4">
             <Shield className="w-12 h-12 text-blue-500" />
@@ -30,7 +31,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, children }
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
           <button 
             onClick={onNew}
             className="group flex flex-col items-start p-8 bg-[#111827] border border-slate-800 rounded-[2rem] text-left hover:border-blue-500/50 hover:bg-[#161f32] transition-all duration-500 shadow-xl"
@@ -38,11 +39,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, children }
             <div className="p-4 bg-blue-500/10 rounded-2xl mb-6 group-hover:scale-110 transition-transform">
               <FilePlus className="w-8 h-8 text-blue-500" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              Novo Mapeamento <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0" />
+            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              Novo Projeto <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0" />
             </h3>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Inicie um projeto do zero, carregue sua planta baixa e posicione os dispositivos.
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Inicie do zero e posicione os dispositivos no mapa.
             </p>
           </button>
 
@@ -53,11 +54,26 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNew, onOpen, children }
             <div className="p-4 bg-emerald-500/10 rounded-2xl mb-6 group-hover:scale-110 transition-transform">
               <FolderOpen className="w-8 h-8 text-emerald-500" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              Abrir Projeto <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0" />
+            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              Abrir Edição <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0" />
             </h3>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Carregue um arquivo .json salvo anteriormente para continuar sua edição.
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Carregue um arquivo para continuar alterando.
+            </p>
+          </button>
+
+          <button 
+            onClick={onViewOnly}
+            className="group flex flex-col items-start p-8 bg-[#111827] border border-slate-800 rounded-[2rem] text-left hover:border-amber-500/50 hover:bg-[#161f32] transition-all duration-500 shadow-xl"
+          >
+            <div className="p-4 bg-amber-500/10 rounded-2xl mb-6 group-hover:scale-110 transition-transform">
+              <Eye className="w-8 h-8 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              Apenas Visualizar <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0" />
+            </h3>
+            <p className="text-slate-500 text-xs leading-relaxed">
+              Explore o mapa e informações sem risco de alterações.
             </p>
           </button>
         </div>
